@@ -124,7 +124,7 @@ def main():
     switch_count = 0
 
     loops = 1000000
-    epochs = 10
+    epochs = 5
     games = 1000
 
     for loop in range(loops):
