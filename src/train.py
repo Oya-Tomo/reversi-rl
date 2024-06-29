@@ -11,7 +11,7 @@ from dataloader import QvalueDataset
 
 
 def match_loop(learn_model: DQN, oppnt_model: DQN, loop: int, games: int):
-    epsilon = 0.8 * (0.9 ** ((loop % 1000) / 20))
+    epsilon = 0.3 * (0.98 ** ((loop % 1000) / 20))
 
     exps = []
     results = [0, 0, 0]
@@ -53,7 +53,9 @@ def match_loop(learn_model: DQN, oppnt_model: DQN, loop: int, games: int):
     return exps, results
 
 
-def train(learn: dict, oppnt: dict, loop: int, epochs: int) -> list[int, int, int]:
+def train(
+    learn: dict, oppnt: dict, loop: int, epochs: int, games: int
+) -> list[int, int, int]:
     learn_model = learn["model"]
     learn_optimizer = learn["optimizer"]
     learn_criterion = learn["criterion"]
@@ -65,7 +67,7 @@ def train(learn: dict, oppnt: dict, loop: int, epochs: int) -> list[int, int, in
     device = next(learn_model.parameters()).device
     learn_model.eval()
     oppnt_model.eval()
-    exps, results = match_loop(learn_model, oppnt_model, loop, 1000)
+    exps, results = match_loop(learn_model, oppnt_model, loop, games)
 
     if loop % 5000 < 5:
         tail_sampling = (loop + 1) * 2
@@ -110,7 +112,11 @@ def main():
 
     switch_count = 0
 
-    for loop in range(1000000):
+    loops = 1000000
+    epochs = 50
+    games = 1000
+
+    for loop in range(loops):
         learner = {
             "model": learn_model,
             "optimizer": learn_optimizer,
@@ -122,9 +128,9 @@ def main():
             "criterion": oppnt_criterion,
         }
 
-        result = train(learner, oppnt, loop, 50)
+        result = train(learner, oppnt, loop, epochs, games)
 
-        if result[0] > result[1]:
+        if result[0] > games * 0.55:
             print("switch models !")
             learn_model, oppnt_model = oppnt_model, learn_model
             learn_optimizer, oppnt_optimizer = oppnt_optimizer, learn_optimizer
