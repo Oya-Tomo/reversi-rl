@@ -118,6 +118,16 @@ class ModelAgent(Agent):
         self.buffer.add(inputs[index])
         return actions[index]
 
+    def act_random(self, board: Board) -> tuple[int, int] | None:
+        actions = board.get_actions(self.stone)
+        if len(actions) == 0:
+            return None
+
+        inputs = args_to_inputs(self.stone, board, actions)
+        index = random.randrange(0, len(actions))
+        self.buffer.add(inputs[index])
+        return actions[index]
+
     def _predict(self, inputs: list) -> torch.Tensor:
         inputs = torch.tensor(inputs).to(self.device)
         outputs = self.model(inputs).cpu()

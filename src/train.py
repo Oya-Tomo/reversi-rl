@@ -6,13 +6,17 @@ from torch.utils.data import DataLoader
 from bitboard import Stone
 from model import DQN
 from agent import ModelAgent
-from match import auto_match
+from match import auto_match_random_start
 from dataloader import QvalueDataset
 
 
-def match_loop(learn_model: DQN, oppnt_model: DQN, loop: int, games: int):
-    epsilon = 0.3 * (0.98 ** ((loop % 1000) / 20))
-
+def match_loop(
+    learn_model: DQN,
+    oppnt_model: DQN,
+    games: int,
+    epsilon: float,
+    start_random: int,
+):
     exps = []
     results = [0, 0, 0]
 
@@ -20,7 +24,9 @@ def match_loop(learn_model: DQN, oppnt_model: DQN, loop: int, games: int):
         black_agent = ModelAgent(Stone.BLACK, learn_model, epsilon)
         white_agent = ModelAgent(Stone.WHITE, oppnt_model, epsilon)
 
-        bexp, wexp, rwd = auto_match(black_agent, white_agent)
+        bexp, wexp, rwd = auto_match_random_start(
+            black_agent, white_agent, start_random
+        )
         exps.append(bexp)
         if rwd > 0:
             results[0] += 1
@@ -29,13 +35,15 @@ def match_loop(learn_model: DQN, oppnt_model: DQN, loop: int, games: int):
         else:
             results[2] += 1
 
-        print(f"Loop: {loop}, Game: {a}, Reward: {rwd}")
+        print(f"Game: {a}, Reward: {rwd}")
 
     for a in range(games // 2):
         black_agent = ModelAgent(Stone.BLACK, oppnt_model, epsilon)
         white_agent = ModelAgent(Stone.WHITE, learn_model, epsilon)
 
-        bexp, wexp, rwd = auto_match(black_agent, white_agent)
+        bexp, wexp, rwd = auto_match_random_start(
+            black_agent, white_agent, start_random
+        )
         exps.append(wexp)
         if rwd > 0:
             results[1] += 1
@@ -44,11 +52,9 @@ def match_loop(learn_model: DQN, oppnt_model: DQN, loop: int, games: int):
         else:
             results[2] += 1
 
-        print(f"Loop: {loop}, Game: {a + games // 2}, Reward: {rwd}")
+        print(f"Game: {a + games // 2}, Reward: {rwd}")
 
-    print(
-        f"Loop: {loop}, Results: learn {results[0]} - oppnt {results[1]} - draw {results[2]}"
-    )
+    print(f"Results: learn {results[0]} - oppnt {results[1]} - draw {results[2]}")
 
     return exps, results
 
@@ -64,12 +70,17 @@ def train(
     oppnt_optimizer = oppnt["optimizer"]
     oppnt_criterion = oppnt["criterion"]
 
+    epsilon = -0.00009 * (loop % 1000) + 0.1
+    random_start = 10
+
     device = next(learn_model.parameters()).device
     learn_model.eval()
     oppnt_model.eval()
-    exps, results = match_loop(learn_model, oppnt_model, loop, games)
+    exps, results = match_loop(learn_model, oppnt_model, games, epsilon, random_start)
 
-    if loop % 5000 < 5:
+    print(f"Loop: {loop}, Epsilon: {epsilon}")
+
+    if loop % 1000 < 5:
         tail_sampling = (loop + 1) * 2
     else:
         tail_sampling = 64
@@ -77,7 +88,7 @@ def train(
     for epoch in range(epochs):
         learn_model.eval()
         dataset = QvalueDataset(exps, tail_sampling, learn_model)
-        dataloader = DataLoader(dataset, batch_size=128, shuffle=True)
+        dataloader = DataLoader(dataset, batch_size=256, shuffle=True)
 
         loss = 0
 
@@ -113,7 +124,7 @@ def main():
     switch_count = 0
 
     loops = 1000000
-    epochs = 50
+    epochs = 10
     games = 1000
 
     for loop in range(loops):
@@ -130,13 +141,7 @@ def main():
 
         result = train(learner, oppnt, loop, epochs, games)
 
-        if result[0] > games * 0.55:
-            print("switch models !")
-            learn_model, oppnt_model = oppnt_model, learn_model
-            learn_optimizer, oppnt_optimizer = oppnt_optimizer, learn_optimizer
-            switch_count += 1
-
-        if loop % 100 == 99:
+        if loop % 10 == 9:
             if os.path.exists("checkpoint") is False:
                 os.makedirs("checkpoint")
             torch.save(
@@ -150,6 +155,13 @@ def main():
                 },
                 f"checkpoint/point_{loop}.pth",
             )
+
+        if result[0] > games * 0.55:
+            print("switch models !")
+            learn_model, oppnt_model = oppnt_model, learn_model
+            learn_optimizer, oppnt_optimizer = oppnt_optimizer, learn_optimizer
+            switch_count += 1
+
     print("Training done.")
 
 
