@@ -9,9 +9,9 @@ def exps_to_data(
     tail: int,
 ) -> list[
     tuple[
-        torch.Tensor | None,
+        list | None,
         float,
-        torch.Tensor | None,
+        list | None,
     ]
 ]:
     data = []
@@ -22,7 +22,7 @@ def exps_to_data(
             if i == len(exp_buffer) - 1:
                 data.append(
                     (
-                        torch.tensor(exp_buffer[i].inputs, dtype=torch.float),
+                        exp_buffer[i].inputs,
                         exp_buffer[i].reward,
                         None,
                     )
@@ -30,9 +30,9 @@ def exps_to_data(
             else:
                 data.append(
                     (
-                        torch.tensor(exp_buffer[i].inputs, dtype=torch.float),
+                        exp_buffer[i].inputs,
                         exp_buffer[i].reward,
-                        torch.tensor(exp_buffer[i + 1].inputs, dtype=torch.float),
+                        exp_buffer[i + 1].inputs,
                     )
                 )
     return data
@@ -59,8 +59,8 @@ class QvalueDataset(Dataset):
         target_inputs = item[2]
         if target_inputs != None:
             target_outputs: torch.Tensor = self.model(
-                target_inputs.to(self.device)
-            ).cpu()
-            return item[0], item[1] + target_outputs
+                torch.tensor([target_inputs]).to(self.device)
+            ).cpu()[0]
+            return torch.tensor(item[0]), item[1] + target_outputs
         else:
-            return item[0], torch.tensor([item[1]])
+            return torch.tensor(item[0]), torch.tensor([item[1]])
