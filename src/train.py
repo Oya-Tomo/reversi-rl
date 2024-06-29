@@ -130,7 +130,7 @@ def main():
             learn_optimizer, oppnt_optimizer = oppnt_optimizer, learn_optimizer
             switch_count += 1
 
-        if loop % 100 == 0:
+        if loop % 100 == 99:
             if os.path.exists("checkpoint") is False:
                 os.makedirs("checkpoint")
             torch.save(
