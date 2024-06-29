@@ -53,7 +53,7 @@ def match_loop(learn_model: DQN, oppnt_model: DQN, loop: int, games: int):
     return exps, results
 
 
-def train(learn: dict, oppnt: dict, loop: int, epochs: int):
+def train(learn: dict, oppnt: dict, loop: int, epochs: int) -> list[int, int, int]:
     learn_model = learn["model"]
     learn_optimizer = learn["optimizer"]
     learn_criterion = learn["criterion"]
@@ -67,9 +67,14 @@ def train(learn: dict, oppnt: dict, loop: int, epochs: int):
     oppnt_model.eval()
     exps, results = match_loop(learn_model, oppnt_model, loop, 1000)
 
+    if loop < 10:
+        tail_sampling = loop
+    else:
+        tail_sampling = 64
+
     for epoch in range(epochs):
         learn_model.eval()
-        dataset = QvalueDataset(exps, epoch, learn_model)
+        dataset = QvalueDataset(exps, tail_sampling, learn_model)
         dataloader = DataLoader(dataset, batch_size=128, shuffle=True)
 
         loss = 0
@@ -88,6 +93,8 @@ def train(learn: dict, oppnt: dict, loop: int, epochs: int):
             learn_optimizer.step()
 
         print(f"Loop : {loop}, Epoch: {epoch}, Loss: {loss / len(dataloader)}")
+
+    return results
 
 
 def main():
