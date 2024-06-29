@@ -67,8 +67,8 @@ def train(learn: dict, oppnt: dict, loop: int, epochs: int) -> list[int, int, in
     oppnt_model.eval()
     exps, results = match_loop(learn_model, oppnt_model, loop, 1000)
 
-    if loop < 10:
-        tail_sampling = loop
+    if loop % 5000 < 5:
+        tail_sampling = (loop + 1) * 2
     else:
         tail_sampling = 64
 
